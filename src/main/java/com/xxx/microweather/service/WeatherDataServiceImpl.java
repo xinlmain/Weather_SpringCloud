@@ -45,8 +45,14 @@ public class WeatherDataServiceImpl implements WeatherDataService{
 
     @Override
     public WeatherResponse getDataByCityName(String cityName) {
-        String uri = WEATHER_URI + "city=" + cityName;
+        String uri = WEATHER_URI + "City=" + cityName;
         return doGetWeatherResponse(uri);
+    }
+
+    @Override
+    public void syncDataByCityId(String cityId) {
+        String uri = WEATHER_URI + "citykey=" + cityId;
+        this.saveWeatherData(uri);
     }
 
     private WeatherResponse doGetWeatherResponse(String uri) {
@@ -76,5 +82,14 @@ public class WeatherDataServiceImpl implements WeatherDataService{
         }
 
         return response;
+    }
+
+    private void saveWeatherData(String uri) {
+        String key = uri;
+        String respString = null;
+        ValueOperations<String, String> ops = stringRedisTemplate.opsForValue();
+
+        respString = restTemplate.getForObject(uri, String.class);
+        ops.set(key, respString, TIMEOUT, TimeUnit.SECONDS);
     }
 }
