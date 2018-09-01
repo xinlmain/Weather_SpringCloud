@@ -24,7 +24,7 @@ public class WeatherController {
         return weatherDataService.getDataByCityId(cityId);
     }
 
-    @GetMapping("/cityName/{cityName}")
+    @GetMapping("/cityName /{cityName}")
     public WeatherResponse getWeatherByCityName(@PathVariable("cityName") String cityName) {
         return weatherDataService.getDataByCityName(cityName);
     }

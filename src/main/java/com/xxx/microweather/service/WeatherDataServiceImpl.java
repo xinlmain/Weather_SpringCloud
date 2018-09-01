@@ -1,15 +1,17 @@
 package com.xxx.microweather.service;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xxx.microweather.vo.WeatherResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author xin
@@ -18,10 +20,16 @@ import java.io.IOException;
 @Service
 public class WeatherDataServiceImpl implements WeatherDataService{
 
+    private static final Logger logger = LoggerFactory.getLogger(WeatherDataServiceImpl.class);
+
     private static final String WEATHER_URI = "http://wthrcdn.etouch.cn/weather_mini?";
 
     @Autowired
     private RestTemplate restTemplate;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+    private static final long TIMEOUT = 1800L;
 
     @Override
     public WeatherResponse getDataByCityId(String cityId) {
@@ -42,14 +50,29 @@ public class WeatherDataServiceImpl implements WeatherDataService{
     }
 
     private WeatherResponse doGetWeatherResponse(String uri) {
-        String respString = restTemplate.getForObject(uri, String.class);
+        String key = uri;
+        String respString = null;
+        ValueOperations<String, String> ops = stringRedisTemplate.opsForValue();
+
+        // first check cache
+        if (stringRedisTemplate.hasKey(key)) {
+            logger.info("Redis has data");
+            respString = ops.get(key);
+        } else {
+            logger.info("Redis has no data");
+            // if no cache, get from api and write cache.
+            respString = restTemplate.getForObject(uri, String.class);
+            ops.set(key, respString, TIMEOUT, TimeUnit.SECONDS);
+        }
+
         ObjectMapper mapper = new ObjectMapper();
         WeatherResponse response = null;
 
         try {
             response = mapper.readValue(respString, WeatherResponse.class);
         } catch (IOException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
+            logger.error("", e);
         }
 
         return response;
